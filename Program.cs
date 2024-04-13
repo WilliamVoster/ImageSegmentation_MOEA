@@ -11,24 +11,88 @@ namespace ImageSegmentation_MOEA
 {
     internal class Program
     {
-        //Bitmap image;
+        public static int[,] NEIGHBOR_ORDER = {
+            { 1, 0 },   // East
+            { -1, 0 },  // West
+            { 0, -1 },  // North
+            { 0, 1 },   // South
+            { 1, -1 },  // Northeast
+            { 1, 1 },   // Southeast
+            { -1, -1 }, // Northwest
+            { -1, 1 }   // Southwest
+        };
 
-        Program() { }
+        Bitmap image;
+        int popSize;
+        int numGenerations;
+        Individual[] population;
 
-
-        public static Bitmap loadImage(string filepath)
+        Program(int popSize, int numGenerations) 
         {
-            Bitmap image = null;
+            this.popSize = popSize;
+            this.numGenerations = numGenerations;
+            population = new Individual[popSize];
+        }
+
+        public void run()
+        {
+            // Init population
+            for (int i = 0; i < popSize; i++)
+            {
+                population[i] = new Individual(image, 150);
+                population[i].initializeSegmentsGrid(10, 10);
+                population[i].calcFitness();
+            }
+
+
+            for (int i = 0; i < numGenerations; i++)
+            {
+
+                //Selection
+                Array.Sort(population);
+                Individual[] parents = selection(popSize);
+
+                //Crossover
+
+                //Mutation
+
+                //Offspring Selection
+
+            }
+
+        }
+
+        public Individual[] selection(int numParents)
+        {
+            Individual[] parents = new Individual[numParents];
+
+            for (int i = 0; i < numParents; i++)
+            {
+                parents[i] = population[i];
+            }
+
+            return parents;
+        }
+
+        //public void mutate()
+        //{
+
+        //}
+
+
+
+        public void loadImage(string filepath)
+        {
+            image = null;
             try
             {
                 image = new Bitmap(filepath);
             }
             catch { Console.WriteLine("could not load/find file: " + filepath); }
 
-            return image;
         }
 
-        public static void runEvaluator()
+        public static void runPythonEvaluator()
         {
             try
             {
@@ -120,7 +184,32 @@ namespace ImageSegmentation_MOEA
     public static void Main(string[] args)
         {
 
-            Program program = new Program();
+            /*
+            TODO:
+
+            how to implement fitness?
+            comparable and sortable individuals, by which fitness type?
+            
+            selection
+            crossover
+                coordinateView should keep track of other possible segments to fall back to?
+                or instead:
+                select one parent to be dominant for each segment (segment-id?)
+                for every pixel in that segment 
+                define 
+            mutation
+            offspring selection
+
+            Things to try:
+            - CIE Lab colour instead of RGB
+            - 1/F(j) instead of just 1/8 equal weight for all neighbors
+            - does skipping fitness eval on image frame matter?
+            - skip calculating segment centre if no pixels are added/removed
+                - hashmap maybe?
+
+            */
+
+            Program program = new Program(50, 100);
 
             string solutionDir = Directory.GetCurrentDirectory() + "\\..\\..\\..\\";
             String[] images = { "86016", "118035", "147091", "176035", "176039", "353013" };
@@ -133,18 +222,18 @@ namespace ImageSegmentation_MOEA
             //Program.moveImages(trainImageFolderPath, evaluatorPath + "optimal_segments", "GT_*.jpg", true);
             //Program.moveImages(trainImageFolderPath, solutionsFolder, "s*.jpg", true);
 
-            //Program.runEvaluator();
+            //Program.runPythonEvaluator();
 
 
-            Bitmap image = Program.loadImage(imagePath);
+            program.loadImage(imagePath);
+            program.run();
 
-            Individual individual = new Individual(image, 150);
 
-            individual.initializeSegmentsGrid(10, 10);
+            //Individual individual = new Individual(program.image, 150);
+            //individual.initializeSegmentsGrid(10, 10);
 
-            Bitmap segmentedImage = individual.getBitmap();
-
-            Program.saveSolution(segmentedImage, solutionsFolder + "\\grid.png");
+            //Bitmap segmentedImage = individual.getBitmap();
+            //Program.saveSolution(segmentedImage, solutionsFolder + "\\grid.png");
 
 
         }

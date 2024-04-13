@@ -13,7 +13,11 @@ namespace ImageSegmentation_MOEA
         public double connectivity;
         public double overallDeviation;
 
-        public Fitness() { }
+        public Fitness() 
+        {
+            
+        }
+
 
 
     }

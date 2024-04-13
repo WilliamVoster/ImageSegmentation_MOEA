@@ -1,4 +1,4 @@
-# ImageSegmentation_MOEA
+# Image segmentation with a multi objective evolutionary algorithm (MOEA)
 
 
 Assignment outline from NTNU provided 2 folders: 
