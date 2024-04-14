@@ -19,9 +19,9 @@ namespace ImageSegmentation_MOEA
         public Fitness fitness; 
 
 
-        public Individual(Bitmap image, int numSegments)
+        public Individual(Bitmap image, int numSegments, Random random, bool coloredSegments = true)
         {
-            this.random = new Random(1);
+            this.random = random;
             this.fitness = new Fitness();
             this.numSegments = numSegments;
             this.image = image;
@@ -30,22 +30,27 @@ namespace ImageSegmentation_MOEA
 
             for (int i = 0; i < numSegments; i++)
             {
-                segmentView[i] = new Segment(Color.FromArgb((30 + i) % 255, (60 + 3 * i) % 255, (10 + 2 * i) % 255));
-                //segmentView[i] = new Segment(Color.FromArgb(random.Next(0, 255), random.Next(0, 255), random.Next(0, 255)));
+                if (coloredSegments)
+                {
+                    //Color.FromArgb(random.Next(0, 255), random.Next(0, 255), random.Next(0, 255));
+                    segmentView[i] = new Segment(
+                        i,
+                        Color.FromArgb(
+                            (30 + i) % 255, 
+                            (60 + 3 * i) % 255, 
+                            (10 + 2 * i) % 255));
+                }
+                else
+                {
+                    segmentView[i] = new Segment(
+                        i,
+                        Color.FromArgb(0, 0, 0));
+                }
             }
 
             coordinateView = new Pixel[image.Width, image.Height];
 
-            //for (int i = 0; i < image.Width; i++)
-            //{
-            //    for (int j = 0; j < image.Height; j++) 
-            //    {
-            //        coordinateView[i, j] = new LinkedList<Segment>();
-            //    }
-            //}
         }
-
-
 
         public void initializeSegmentsGrid(int numRows, int numCols)
         {
@@ -90,7 +95,7 @@ namespace ImageSegmentation_MOEA
         {
             segment.pixels.Remove(pixel.coordinate);
             //pixel.segment = null;
-            //coordinateView[pixel.coordinate.Item1, pixel.coordinate.Item2] = null;
+            //coordinateView[pixel.coordinate.Item1, pixel.coordinate.Item2] = null; //needed for flood fill?
         }
 
         public void mutate_splashCirlce()
@@ -103,12 +108,6 @@ namespace ImageSegmentation_MOEA
              */
         }
 
-        public void crossover()
-        {
-            /*
-             * 
-             */
-        }
 
         public void mutate_growBorder()
         {
@@ -183,6 +182,145 @@ namespace ImageSegmentation_MOEA
 
         }
 
+        public void floodFillSegment(
+            Segment writeSegment, 
+            Individual readIndividual, 
+            Tuple<int, int>? startPoint = null, 
+            bool ignoreFillWithinSegmentRule = false
+        )
+        {
+            /* 
+             * Starting from writeSegment centre
+             * floodfill and create pixels belonging to writeSegment
+             * untill hit pixel belonging to another segment. i.e. if pixel already exists dont overwrite
+             * 
+             * Params:
+             *      writeSegment    Reference to this individual's segment to fill. Instead of having to
+             *                      search for it in segmentview
+             *      readIndividual  other individual to read segment info from
+             *      ignore...rule   false: only fills within readIndividual's given segment
+             *                      true: lets algorithm floodfill outside the segment
+             */
+            if(readIndividual.segmentView[writeSegment.index].pixels.Count <= 0 && !ignoreFillWithinSegmentRule) return;
+
+            Queue<Tuple<int, int>> toFill = new Queue<Tuple<int, int>>();
+
+            if (startPoint == null)
+                startPoint = Tuple.Create(writeSegment.centre[0], writeSegment.centre[1]);
+
+            toFill.Enqueue(startPoint);
+
+            while(toFill.Count > 0)
+            {
+                (int x, int y) = toFill.Dequeue();
+
+                if
+                (
+                    x >= 0 &&
+                    x < coordinateView.GetLength(0) &&
+                    y >= 0 &&
+                    y < coordinateView.GetLength(1) &&
+
+                    coordinateView[x, y] == null &&
+
+                    (ignoreFillWithinSegmentRule || 
+                    writeSegment.index == readIndividual.coordinateView[x, y].segment.index)
+                    
+                )
+                {
+                    Pixel pixel = new Pixel(Tuple.Create(x, y), writeSegment);
+                    addPixel(writeSegment, pixel);
+
+                    // Add neighboring pixels/coordinates to queue
+                    for(int i = 0; i < Program.NEIGHBOR_ORDER.Length; i++)
+                    {
+                        toFill.Enqueue(
+                            Tuple.Create(
+                                x + Program.NEIGHBOR_ORDER[i, 0], 
+                                y + Program.NEIGHBOR_ORDER[i, 1]));
+
+                    }
+                    
+                }
+            }
+        }
+
+        public void floodFillEmptyPixels()
+        {
+            /* 
+             * Look within coordinateView for pixels without a segment
+             * go in one direction (towards center of image?) until hit a segment
+             *      Fallback if can not find a segment with scanning: 
+             *      look to see if we have an empty segment in segmentview and fill with that segment
+             * fill from that border with said segment
+             */
+
+            int[] directionTowardsCentre = new int[2];
+            int scanX;
+            int scanY;
+            for (int x = 0; x < coordinateView.GetLength(0); x++)
+            {
+                for (int y = 0; y < coordinateView.GetLength(1); y++)
+                {
+                    if (coordinateView[x, y] != null) continue;
+
+                    directionTowardsCentre[0] = 1;
+                    directionTowardsCentre[1] = 1;
+
+                    if (x / coordinateView.GetLength(0) >= 0.5)
+                        directionTowardsCentre[0] = -1;
+
+                    if (y / coordinateView.GetLength(1) >= 0.5)
+                        directionTowardsCentre[1] = -1;
+
+                    try
+                    {
+                        for (int i = 1; i < coordinateView.GetLength(0) * coordinateView.GetLength(1); i++)
+                        {
+                            scanX = x + (i * directionTowardsCentre[0]);
+                            scanY = y + (i * directionTowardsCentre[1]);
+
+
+                            if (coordinateView[scanX, scanY] != null)
+                            {
+                                floodFillSegment(
+                                    coordinateView[scanX, scanY].segment,
+                                    this,
+                                    Tuple.Create(scanX, scanY),
+                                    true);
+                                break;
+                            }
+
+                            if (i >= coordinateView.GetLength(0))
+                                Console.WriteLine("floodfillempty() Should not run for this long!");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // Catch when above loop goes outside the image frame
+                        // and does not hit another segment before that
+
+                        Console.WriteLine("this is hopefully a rare occurrance: " + ex.ToString());
+
+                        for (int j = 0; j < segmentView.Length; j++)
+                        {
+                            if (segmentView[j].pixels.Count == 0)
+                            {
+                                floodFillSegment(
+                                        segmentView[j],
+                                        this,
+                                        Tuple.Create(x, y),
+                                        true);
+                                segmentView[j].centre = [x, y]; // probably unnecessary since calcFitness
+                            }
+                        }
+
+                        if (coordinateView[x, y] == null) { Console.WriteLine("how the fuck?"); }
+
+                    }
+                }
+            }
+        }
 
         public Bitmap getBitmap()
         {

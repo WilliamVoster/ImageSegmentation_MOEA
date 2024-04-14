@@ -26,12 +26,16 @@ namespace ImageSegmentation_MOEA
         int popSize;
         int numGenerations;
         Individual[] population;
+        Random random;
+        int numSegments;
 
-        Program(int popSize, int numGenerations) 
+        Program(int popSize, int numGenerations, int numSegments) 
         {
+            this.random = new Random(1);
             this.popSize = popSize;
             this.numGenerations = numGenerations;
             population = new Individual[popSize];
+            this.numSegments = numSegments;
         }
 
         public void run()
@@ -39,7 +43,7 @@ namespace ImageSegmentation_MOEA
             // Init population
             for (int i = 0; i < popSize; i++)
             {
-                population[i] = new Individual(image, 150);
+                population[i] = new Individual(image, numSegments, random);
                 population[i].initializeSegmentsGrid(10, 10);
                 population[i].calcFitness();
             }
@@ -53,6 +57,7 @@ namespace ImageSegmentation_MOEA
                 Individual[] parents = selection(popSize);
 
                 //Crossover
+                Individual[] children = crossover(parents);
 
                 //Mutation
 
@@ -74,10 +79,91 @@ namespace ImageSegmentation_MOEA
             return parents;
         }
 
-        //public void mutate()
-        //{
+        public Individual[] crossover(Individual[] parents)
+        {
+            /*
+             * split num ~%50 segments from each parent (make more random somehow, not just first x)
+             * take one half from each. parent 1 is dominant for child 1, partent 2 for child 2
+             *      dominant in terms of their segment has priority i.e. added first to the new child
+             * add to child with empty pixels (how to generate efficiantly?)  
+             * for every segment, flood fill (within segment) from each centroid
+             *      until hitting other segment, starting with highest priority
+             *      randomize segment priorities somehow?
+             * loop over cooridnateview/pixels for empty pixels
+             *      choose (randomly? (or just toward center of image) one of the 4 directions 
+             *      go that same direction until hit a segment
+             *      flood fill from border with said segment
+             *      now, still in same loop looking for empty pixels --> continue
+             * re-calc for children:
+             *      fitness (which includes centroid)
+             *      or should i wait until after mutation
+             *      calc fitness in offspring selection instead!
+             */
 
-        //}
+            int splitIndex;
+            Segment child1Segment;
+            Segment child2Segment;
+
+            Individual[] children = new Individual[parents.Length];
+            
+            for (int i = 0; i < parents.Length; i += 2)
+            {
+                splitIndex = random.Next(numSegments - 2) + 1; //makes sure not all segments from one parent
+
+
+                children[i] = new Individual(image, numSegments, random, false);
+                children[i+1] = new Individual(image, numSegments, random, false);
+
+                // Each segment is flood filled within segments from parent 1 and 2, split on splitIndex
+                for (int j = 0; j < numSegments; j++)
+                {
+                    child1Segment = children[i].segmentView[j];
+                    child2Segment = children[i+1].segmentView[j];
+
+                    if (j < splitIndex)
+                    {
+                        // Child 1 gets first part of parent 1
+                        child1Segment.centre[0] = parents[i].segmentView[j].centre[0];
+                        child1Segment.centre[1] = parents[i].segmentView[j].centre[1];
+                        children[i].floodFillSegment(child1Segment, parents[i]);
+
+                        // Child 2 gets first part of parent 2
+                        child2Segment.centre[0] = parents[i+1].segmentView[j].centre[0];
+                        child2Segment.centre[1] = parents[i+1].segmentView[j].centre[1];
+                        children[i+1].floodFillSegment(child2Segment, parents[i+1]);
+
+                    }
+                    else
+                    {
+                        // Child 1 gets second part of parent 2
+                        child1Segment.centre[0] = parents[i+1].segmentView[j].centre[0];
+                        child1Segment.centre[1] = parents[i+1].segmentView[j].centre[1];
+                        children[i].floodFillSegment(child1Segment, parents[i+1]);
+
+                        // Child 2 gets second part of parent 1
+                        child2Segment.centre[0] = parents[i].segmentView[j].centre[0];
+                        child2Segment.centre[1] = parents[i].segmentView[j].centre[1];
+                        children[i+1].floodFillSegment(child2Segment, parents[i]);
+                    }
+                }
+
+                // Find segmentless pixels
+                children[i].floodFillEmptyPixels();
+                children[i+1].floodFillEmptyPixels();
+
+            }
+
+            return children;
+        }
+
+        public void mutate()
+        {
+            /* 
+             * 
+             * 
+             */
+
+        }
 
 
 
@@ -206,10 +292,12 @@ namespace ImageSegmentation_MOEA
             - does skipping fitness eval on image frame matter?
             - skip calculating segment centre if no pixels are added/removed
                 - hashmap maybe?
-
+            - remove special color generation in individual constructor
+            - when flood filling - multiple of same pixels are checked and added to queue
+                    possible to add checked coordinates to a dictionary/hashmap to not add explored?
             */
 
-            Program program = new Program(50, 100);
+            Program program = new Program(50, 100, 150);
 
             string solutionDir = Directory.GetCurrentDirectory() + "\\..\\..\\..\\";
             String[] images = { "86016", "118035", "147091", "176035", "176039", "353013" };

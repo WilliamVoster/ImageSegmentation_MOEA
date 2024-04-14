@@ -16,10 +16,13 @@ namespace ImageSegmentation_MOEA
         public Color color; // RGB, could use CIE lab
 
         
-        public Pixel(Tuple<int, int> coordinate, Segment segment, Color color)
+        public Pixel(Tuple<int, int> coordinate, Segment segment)
         {
             this.coordinate = coordinate;
             this.segment = segment;
+        }
+        public Pixel(Tuple<int, int> coordinate, Segment segment, Color color) : this(coordinate, segment)
+        {
             this.color = color;
         }
 

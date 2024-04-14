@@ -15,9 +15,11 @@ namespace ImageSegmentation_MOEA
         //public LinkedList<Segment> neighbors;  // relplaced by coordinateView in individual
         public Color color;
         public int[] centre; // Pixel coordinate of segmentation centre
+        public int index;
 
-        public Segment(Color color) 
+        public Segment(int index, Color color) 
         {
+            this.index = index;
             pixels = new Dictionary<Tuple<int, int>, Pixel>();
             this.color = color;
             centre = new int[2];
@@ -36,6 +38,7 @@ namespace ImageSegmentation_MOEA
             centre[1] = (int) ySum / pixels.Count;
             return centre;
         }
+
 
     }
 }
