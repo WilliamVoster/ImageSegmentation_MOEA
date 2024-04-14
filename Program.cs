@@ -301,6 +301,7 @@ namespace ImageSegmentation_MOEA
 
             string solutionDir = Directory.GetCurrentDirectory() + "\\..\\..\\..\\";
             String[] images = { "86016", "118035", "147091", "176035", "176039", "353013" };
+            // dimensions of fourth photo - 176039 had other dimensions than the ground truth photos.
             string trainImageFolderPath = solutionDir + "Project_3_training_images\\" + images[1];
             string evaluatorPath = solutionDir + "Project_3_evaluator\\";
             string imagePath = trainImageFolderPath + "\\Test image.jpg";
