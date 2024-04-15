@@ -64,6 +64,7 @@ namespace ImageSegmentation_MOEA
                 children = mutateSplashCircle(children);
 
                 //Offspring Selection
+                selection(parents, children);
 
             }
 
@@ -190,8 +191,8 @@ namespace ImageSegmentation_MOEA
                 for (int j = 0; j < numCircles; j++)
                 {
                     child = children[i];
-                    int x = random.Next(child.coordinateView.GetLength(0) - 2 * radius) - radius;
-                    int y = random.Next(child.coordinateView.GetLength(1) - 2 * radius) - radius;
+                    int x = random.Next(child.coordinateView.GetLength(0) - 2 * radius) + radius;
+                    int y = random.Next(child.coordinateView.GetLength(1) - 2 * radius) + radius;
 
                     circleSegments.Clear();
 
@@ -252,7 +253,18 @@ namespace ImageSegmentation_MOEA
 
         }
 
+        public void selection(Individual[] parents, Individual[] children)
+        {
+            for(int i = 0; i < popSize; i++)
+            {
+                Fitness childFitness = children[i].calcFitness();
+                if(childFitness.getWeightedFitness() > parents[i].fitness.getWeightedFitness() && random.NextDouble() < 0.8)
+                {
+                    population[i] = children[i];
 
+                }
+            }
+        }
         
         public void loadImage(string filepath)
         {
@@ -376,6 +388,8 @@ namespace ImageSegmentation_MOEA
             unit test each method, show how image look like after e.g. mutation
 
             Things to try:
+            - pre-process image before GA
+                    e.g. edge detection
             - CIE Lab colour instead of RGB
             - 1/F(j) instead of just 1/8 equal weight for all neighbors
             - does skipping fitness eval on image frame matter?
@@ -386,6 +400,7 @@ namespace ImageSegmentation_MOEA
                     possible to add checked coordinates to a dictionary/hashmap to not add explored?
             - move circle coordinate calculation to main string args
             - compute time of each function to find issues
+            - crossover from two parents doesnt include y=160
             */
 
             Program program = new Program(50, 100, 150);

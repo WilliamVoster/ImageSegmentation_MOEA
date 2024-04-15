@@ -12,13 +12,18 @@ namespace ImageSegmentation_MOEA
         public double edgeValue;
         public double connectivity;
         public double overallDeviation;
+        public double? weightedFitness;
 
         public Fitness() 
         {
             
         }
 
-
+        public double getWeightedFitness()
+        {
+            weightedFitness =  -edgeValue + connectivity + overallDeviation;
+            return (double)weightedFitness;
+        }
 
     }
 }

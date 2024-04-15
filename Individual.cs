@@ -138,7 +138,7 @@ namespace ImageSegmentation_MOEA
             {
                 for (int y = 1; y < image.Height - 1; y++)
                 {
-                    for (int j = 0; j < 8; j++)
+                    for (int j = 0; j < Program.NEIGHBOR_ORDER.GetLength(0); j++)
                     {
                         neighbor_x = Program.NEIGHBOR_ORDER[j, 0];
                         neighbor_y = Program.NEIGHBOR_ORDER[j, 1];
@@ -232,7 +232,7 @@ namespace ImageSegmentation_MOEA
                     addPixel(writeSegment, pixel);
 
                     // Add neighboring pixels/coordinates to queue
-                    for(int i = 0; i < Program.NEIGHBOR_ORDER.Length; i++)
+                    for(int i = 0; i < Program.NEIGHBOR_ORDER.GetLength(0); i++)
                     {
                         toFill.Enqueue(
                             Tuple.Create(
@@ -267,10 +267,10 @@ namespace ImageSegmentation_MOEA
                     directionTowardsCentre[0] = 1;
                     directionTowardsCentre[1] = 1;
 
-                    if (x / coordinateView.GetLength(0) >= 0.5)
+                    if (x / (double) coordinateView.GetLength(0) >= 0.5)
                         directionTowardsCentre[0] = -1;
 
-                    if (y / coordinateView.GetLength(1) >= 0.5)
+                    if (y / (double) coordinateView.GetLength(1) >= 0.5)
                         directionTowardsCentre[1] = -1;
 
                     try
@@ -286,7 +286,7 @@ namespace ImageSegmentation_MOEA
                                 floodFillSegment(
                                     coordinateView[scanX, scanY].segment,
                                     this,
-                                    Tuple.Create(scanX, scanY),
+                                    Tuple.Create(x, y),
                                     true);
                                 break;
                             }
