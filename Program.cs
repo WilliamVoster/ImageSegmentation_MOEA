@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
@@ -60,6 +61,7 @@ namespace ImageSegmentation_MOEA
                 Individual[] children = crossover(parents);
 
                 //Mutation
+                children = mutateSplashCircle(children);
 
                 //Offspring Selection
 
@@ -156,17 +158,102 @@ namespace ImageSegmentation_MOEA
             return children;
         }
 
-        public void mutate()
+        public Individual[] mutateSplashCircle(Individual[] children)
         {
             /* 
-             * 
-             * 
+             * Generate random cirlce (or other shape) collection of pixels
+             * look at segments they belong to and set them to one of the segments (at random?)
+             * Varying radius/size
+             */
+
+            int radius = 3;
+            int numCircles = 3;
+            Individual child;
+            Pixel pixel;
+            List<Segment> circleSegments = new List<Segment>();
+
+            // Could be static - i.e. moved to main string args..
+            List<(int, int)> circleCoordinates = new List<(int, int)>();
+            for (int x = -radius; x <= radius; x++)
+            {
+                for (int y = -radius; y <= radius; y++)
+                {
+                    if (x*x + y*y <= radius * radius)
+                    {
+                        circleCoordinates.Add((x, y));
+                    }
+                }
+            }
+
+            for (int i = 0; i < children.Length; i++)
+            {
+                for (int j = 0; j < numCircles; j++)
+                {
+                    child = children[i];
+                    int x = random.Next(child.coordinateView.GetLength(0) - 2 * radius) - radius;
+                    int y = random.Next(child.coordinateView.GetLength(1) - 2 * radius) - radius;
+
+                    circleSegments.Clear();
+
+                    foreach (var (x_offset, y_offset) in circleCoordinates)
+                    {
+                        pixel = child.coordinateView[x + x_offset, y + y_offset];
+                        if (!circleSegments.Contains(pixel.segment))
+                        {
+                            circleSegments.Add(pixel.segment);
+                        }
+                    }
+
+                    Segment chosenSegment = circleSegments[random.Next(circleSegments.Count)];
+
+                    foreach (var (x_offset, y_offset) in circleCoordinates)
+                    {
+                        pixel = child.coordinateView[x + x_offset, y + y_offset];
+                        child.removePixel(pixel.segment, pixel);
+                        child.addPixel(chosenSegment, pixel);
+                    }
+                }
+            }
+
+            return children;
+        }
+
+        public void mutateGrow()
+        {
+            /* 
+             * Choose a segment, take pixels along border from neighboring segments
+             */
+            
+        }
+
+        public void mutateErode()
+        {
+            /* 
+             * Choose a segment, move pixels along border to neighboring segments
+             */
+
+        }
+
+        public void mutateMerge()
+        {
+            /* 
+             * Choose a segment, find a neighboring/bordering segment
+             * merge the two segments
+             */
+
+        }
+
+        public void mutateSplit()
+        {
+            /* 
+             * If exists a segment with no pixels
+             * Choose a segment, split the segment into two
              */
 
         }
 
 
-
+        
         public void loadImage(string filepath)
         {
             image = null;
@@ -286,6 +373,8 @@ namespace ImageSegmentation_MOEA
             mutation
             offspring selection
 
+            unit test each method, show how image look like after e.g. mutation
+
             Things to try:
             - CIE Lab colour instead of RGB
             - 1/F(j) instead of just 1/8 equal weight for all neighbors
@@ -295,6 +384,8 @@ namespace ImageSegmentation_MOEA
             - remove special color generation in individual constructor
             - when flood filling - multiple of same pixels are checked and added to queue
                     possible to add checked coordinates to a dictionary/hashmap to not add explored?
+            - move circle coordinate calculation to main string args
+            - compute time of each function to find issues
             */
 
             Program program = new Program(50, 100, 150);
