@@ -23,6 +23,13 @@ namespace ImageSegmentation_MOEA
             { -1, 1 }   // Southwest
         };
 
+
+        public string trainImageFolderPath;
+        public string evaluatorPath;
+        public string imagePath;
+        public string solutionsFolder;
+
+
         Bitmap image;
         int popSize;
         int numGenerations;
@@ -39,6 +46,20 @@ namespace ImageSegmentation_MOEA
             this.numSegments = numSegments;
         }
 
+        public void setPaths(
+            string trainImageFolderPath,
+            string evaluatorPath,
+            string imagePath,
+            string solutionsFolder
+        )
+        {
+            this.trainImageFolderPath = trainImageFolderPath;
+            this.evaluatorPath = evaluatorPath;
+            this.imagePath = imagePath;
+            this.solutionsFolder = solutionsFolder;
+
+        }
+
         public void run()
         {
             // Init population
@@ -52,6 +73,8 @@ namespace ImageSegmentation_MOEA
 
             for (int i = 0; i < numGenerations; i++)
             {
+                // Logging
+                Console.WriteLine("Generation: " + i);
 
                 //Selection
                 Array.Sort(population);
@@ -63,11 +86,19 @@ namespace ImageSegmentation_MOEA
                 //Mutation
                 children = mutateSplashCircle(children);
 
+                
+
                 //Offspring Selection
                 selection(parents, children);
 
             }
 
+            // Displaying/saving
+            Bitmap segmentedImage = population[0].getBitmap_border();
+            Program.saveSolution(segmentedImage, solutionsFolder + "\\test_child.png");
+
+            Bitmap overlayedImage = population[0].getBitmap_overlayImage();
+            Program.saveSolution(overlayedImage, solutionsFolder + "\\test_child_overlay.png");
         }
 
         public Individual[] selection(int numParents)
@@ -114,8 +145,8 @@ namespace ImageSegmentation_MOEA
                 splitIndex = random.Next(numSegments - 2) + 1; //makes sure not all segments from one parent
 
 
-                children[i] = new Individual(image, numSegments, random, false);
-                children[i+1] = new Individual(image, numSegments, random, false);
+                children[i] = new Individual(image, numSegments, random, true);
+                children[i+1] = new Individual(image, numSegments, random, true);
 
                 // Each segment is flood filled within segments from parent 1 and 2, split on splitIndex
                 for (int j = 0; j < numSegments; j++)
@@ -412,6 +443,8 @@ namespace ImageSegmentation_MOEA
             string evaluatorPath = solutionDir + "Project_3_evaluator\\";
             string imagePath = trainImageFolderPath + "\\Test image.jpg";
             string solutionsFolder = evaluatorPath + "student_segments";
+
+            program.setPaths(trainImageFolderPath, evaluatorPath, imagePath, solutionsFolder);
 
 
             //Program.moveImages(trainImageFolderPath, evaluatorPath + "optimal_segments", "GT_*.jpg", true);

@@ -14,6 +14,8 @@ namespace ImageSegmentation_MOEA
         public Segment[] segmentView;
         public Pixel[,] coordinateView;
         public Bitmap image;
+        public Bitmap segmentBorders;
+        public Bitmap overlayedSegmentation;
         public int numSegments;
         private Random random;
         public Fitness fitness; 
@@ -322,7 +324,7 @@ namespace ImageSegmentation_MOEA
             }
         }
 
-        public Bitmap getBitmap()
+        public Bitmap getBitmap_fill()
         {
             Bitmap bitmap = new Bitmap(image.Width, image.Height);
 
@@ -330,11 +332,105 @@ namespace ImageSegmentation_MOEA
             {
                 for (int y = 0; y < image.Height; y++)
                 {
-                    bitmap.SetPixel(x, y, coordinateView[x, y].color);
+                    bitmap.SetPixel(x, y, coordinateView[x, y].segment.color);
                 }
             }
 
             return bitmap;
+        }
+
+        public Bitmap getBitmap_border()
+        {
+
+            Bitmap bitmap = new Bitmap(image.Width, image.Height);
+            Pixel neighbor;
+
+            using (Graphics g = Graphics.FromImage(bitmap))
+            {
+                using (SolidBrush brush = new SolidBrush(Color.White))
+                {
+                    g.FillRectangle(brush, 0, 0, bitmap.Width, bitmap.Height);
+                }
+            }
+            
+
+            for (int i = 0; i < numSegments; i++)
+            {
+                foreach (Pixel pixel in segmentView[i].pixels.Values)
+                {
+                    // Don't check the border pixels
+                    if (
+                        pixel.coordinate.Item1 <= 0 ||
+                        pixel.coordinate.Item1 >= coordinateView.GetLength(0) - 1 ||
+                        pixel.coordinate.Item2 <= 0 ||
+                        pixel.coordinate.Item2 >= coordinateView.GetLength(1) - 1
+                    ) { continue; }
+
+                    for(int j = 0; j < 4; j++) //first 4 of NEIGHBOR_ORDER = 4-connectedness
+                    {
+                        neighbor = coordinateView[
+                            pixel.coordinate.Item1 + Program.NEIGHBOR_ORDER[j, 0],
+                            pixel.coordinate.Item2 + Program.NEIGHBOR_ORDER[j, 1]];
+
+                        //if (
+                        //    neighbor.segment != pixel.segment &&
+                        //    bitmap.GetPixel(neighbor.coordinate.Item1, neighbor.coordinate.Item2) == Color.White
+                        //)
+                        //{
+                        //    bitmap.SetPixel(pixel.coordinate.Item1, pixel.coordinate.Item2, Color.Black);
+                        //}
+
+                        if (neighbor.segment == pixel.segment)
+                        {
+                            continue;
+                        }
+
+                        Color test = bitmap.GetPixel(neighbor.coordinate.Item1, neighbor.coordinate.Item2);
+                        if (bitmap.GetPixel(neighbor.coordinate.Item1, neighbor.coordinate.Item2).Name != "ffffffff")
+                        {
+                            continue;
+                        }
+
+                        bitmap.SetPixel(pixel.coordinate.Item1, pixel.coordinate.Item2, Color.Black);
+
+                    }
+                }
+            }
+
+            // Fill border
+            for (int x = 0; x < coordinateView.GetLength(0); x++) 
+            {
+
+                bitmap.SetPixel(x, 0, Color.Black);
+                bitmap.SetPixel(x, coordinateView.GetLength(1) - 1, Color.Black);
+            }
+            for (int y = 0; y < coordinateView.GetLength(1); y++)
+            {
+                bitmap.SetPixel(0, y, Color.Black);
+                bitmap.SetPixel(coordinateView.GetLength(0) - 1, y, Color.Black);
+            }
+
+            segmentBorders = bitmap;
+            return bitmap;
+        }
+
+        public Bitmap getBitmap_overlayImage()
+        {
+            overlayedSegmentation = (Bitmap)image.Clone();
+
+
+            for (int x = 0; x < coordinateView.GetLength(0); x++)
+            {
+                for (int y = 0; y < coordinateView.GetLength(1); y++)
+                {
+                    if (segmentBorders.GetPixel(x, y).Name != "ffffffff")
+                    {
+                        overlayedSegmentation.SetPixel(x, y, Color.Green);
+                    }
+                }
+            }
+
+            return overlayedSegmentation;
         }
 
         public int CompareTo(object? obj)
