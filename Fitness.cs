@@ -12,7 +12,13 @@ namespace ImageSegmentation_MOEA
         public double edgeValue;
         public double connectivity;
         public double overallDeviation;
+
+        public static double edgeValueWeight = -0.03;
+        public static double connectivityWeight = 0.05;
+        public static double overallDeviationWeight = 0.001;
+
         public double? weightedFitness;
+
 
         public Fitness() 
         {
@@ -21,7 +27,10 @@ namespace ImageSegmentation_MOEA
 
         public double getWeightedFitness()
         {
-            weightedFitness =  -edgeValue + connectivity + overallDeviation;
+            weightedFitness = 0;
+            weightedFitness += edgeValue * Fitness.edgeValueWeight;
+            weightedFitness += connectivity * Fitness.connectivityWeight;
+            weightedFitness += overallDeviation * Fitness.overallDeviationWeight;
             return (double)weightedFitness;
         }
 
