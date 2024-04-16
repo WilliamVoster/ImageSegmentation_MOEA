@@ -39,6 +39,10 @@ namespace ImageSegmentation_MOEA
         //Individual[] population;
         List<Individual> population;
 
+        FitnessComparerEdgeValue fitnessComparerEdgeValue;
+        FitnessComparerConnectivity fitnessComparerConnectivity;
+        FitnessComparerDeviation fitnessComparerDeviation;
+
         Program(int popSize, int numGenerations, int numSegments) 
         {
             this.random = new Random(1);
@@ -46,7 +50,11 @@ namespace ImageSegmentation_MOEA
             this.numGenerations = numGenerations;
             this.numSegments = numSegments;
             //population = new Individual[popSize];
-            population = new LinkedList<Individual>();
+            population = new List<Individual>(popSize);
+
+            fitnessComparerEdgeValue = new FitnessComparerEdgeValue();
+            fitnessComparerConnectivity = new FitnessComparerConnectivity();
+            fitnessComparerDeviation = new FitnessComparerDeviation();
         }
 
         public void setPaths(
@@ -125,21 +133,6 @@ namespace ImageSegmentation_MOEA
             return parents;
         }
 
-        //public void selectionCutOff(int numToKeep)
-        //{
-        //    /* 
-        //     * Expects the population to already be sorted
-        //     * operates on population
-        //     * deletes numToKeep from end of list
-        //     */
-            
-        //    int numToDelete = population.Count - numToKeep;
-
-        //    for (int i = 0; i < numToDelete; i++)
-        //    {
-        //        population.RemoveLast();
-        //    }
-        //}
 
         public void sortPopulation(int cutOffPoint)
         {
@@ -156,16 +149,20 @@ namespace ImageSegmentation_MOEA
             {
                 int frontNumber = 0;
                 List<Individual> checkedIndividuals = new List<Individual>(population.Count * 2);
-                while(checkedIndividuals.Count <= cutOffPoint)
+                List<Individual> front = new List<Individual>(popSize);
+                while(checkedIndividuals.Count < cutOffPoint)
                 {
                     frontNumber++;
+                    front = new List<Individual>(popSize);
                     for (int i = 0; i < population.Count; i++)
                     {
                         bool inFront = true;
                         for (int j = 0; j < population.Count; j++)
                         {
-                            if (!checkedIndividuals.Contains(population[i]) && 
-                                population[i].fitness.isDominatedBy(population[j].fitness))
+                            if (
+                                !checkedIndividuals.Contains(population[i]) && 
+                                population[i].fitness.isDominatedBy(population[j].fitness)
+                            )
                             {
                                 inFront = false;
                                 break;
@@ -175,17 +172,86 @@ namespace ImageSegmentation_MOEA
                         if (inFront)
                         {
                             population[i].front = frontNumber;
-                            checkedIndividuals.Add(population[i]);
+                            front.Add(population[i]);
                         }
                     }
+
+                    checkedIndividuals.AddRange(front);
                 }
 
                 // Individuals in last front are subject to further sorting and need crowding distance
-                for (int i = checkedIndividuals.Count - 1; i >= 0; i--)
+
+                int startOfLastFront = checkedIndividuals.Count - front.Count;
+                double comstomMaxValue = double.MaxValue / 0.35; // i.e. less than 1/3 of double.max
+                double prev; double next;
+
+
+                // Sort by feature 1: edgeValue
+                checkedIndividuals.Sort(
+                    startOfLastFront,
+                    front.Count,
+                    fitnessComparerEdgeValue);
+
+                for (int i = 0; i < front.Count; i++)
                 {
-                    if (checkedIndividuals[i].front < frontNumber) break;
-                    checkedIndividuals[i].fitness.calcCrowdingDistance();
+                    checkedIndividuals[i + startOfLastFront].crowdingDistance = 0; // Initialize to 0
+
+                    // The ends of the fronts have infinte crowding distance
+                    if (i == 0 || i == front.Count - 1)
+                    {
+                        checkedIndividuals[i + startOfLastFront].crowdingDistance += comstomMaxValue;
+                        continue;
+                    }
+
+                    prev = checkedIndividuals[i + startOfLastFront - 1].fitness.edgeValue;
+                    next = checkedIndividuals[i + startOfLastFront + 1].fitness.edgeValue;
+                    checkedIndividuals[i + startOfLastFront].crowdingDistance += Math.Pow(prev - next, 2);
                 }
+
+
+
+                // Sort by feature 2: connectivity
+                checkedIndividuals.Sort(
+                    startOfLastFront,
+                    front.Count,
+                    fitnessComparerConnectivity);
+
+                for (int i = 0; i < front.Count; i++)
+                {
+                    // The ends of the fronts have infinte crowding distance
+                    if (i == 0 || i == front.Count - 1)
+                    {
+                        checkedIndividuals[i + startOfLastFront].crowdingDistance += comstomMaxValue;
+                        continue;
+                    }
+
+                    prev = checkedIndividuals[i + startOfLastFront - 1].fitness.connectivity;
+                    next = checkedIndividuals[i + startOfLastFront + 1].fitness.connectivity;
+                    checkedIndividuals[i + startOfLastFront].crowdingDistance += Math.Pow(prev - next, 2);
+                }
+
+
+
+                // Sort by feature 3: overallDeviation
+                checkedIndividuals.Sort(
+                    startOfLastFront,
+                    front.Count,
+                    fitnessComparerDeviation);
+
+                for (int i = 0; i < front.Count; i++)
+                {
+                    // The ends of the fronts have infinte crowding distance
+                    if (i == 0 || i == front.Count - 1)
+                    {
+                        checkedIndividuals[i + startOfLastFront].crowdingDistance += comstomMaxValue;
+                        continue;
+                    }
+
+                    prev = checkedIndividuals[i + startOfLastFront - 1].fitness.overallDeviation;
+                    next = checkedIndividuals[i + startOfLastFront + 1].fitness.overallDeviation;
+                    checkedIndividuals[i + startOfLastFront].crowdingDistance += Math.Pow(prev - next, 2);
+                }
+
 
                 population = checkedIndividuals;
             }

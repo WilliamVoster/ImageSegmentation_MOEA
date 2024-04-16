@@ -457,5 +457,27 @@ namespace ImageSegmentation_MOEA
 
 
     }
+    internal class FitnessComparerEdgeValue : IComparer<Individual>
+    {
+        public int Compare(Individual x, Individual y)
+        {
+            return (int)(x.fitness.edgeValue - y.fitness.edgeValue);
+        }
+    }
 
+    internal class FitnessComparerConnectivity : IComparer<Individual>
+    {
+        public int Compare(Individual x, Individual y)
+        {
+            return (int)(y.fitness.connectivity - x.fitness.connectivity);
+        }
+    }
+
+    internal class FitnessComparerDeviation : IComparer<Individual>
+    {
+        public int Compare(Individual x, Individual y)
+        {
+            return (int)(y.fitness.overallDeviation - x.fitness.overallDeviation);
+        }
+    }
 }
