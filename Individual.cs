@@ -29,6 +29,7 @@ namespace ImageSegmentation_MOEA
             this.fitness = new Fitness();
             this.numSegments = numSegments;
             this.image = image;
+            this.front = int.MaxValue;
 
             segmentView = new Segment[numSegments];
 
@@ -449,8 +450,8 @@ namespace ImageSegmentation_MOEA
                 if (crowdingDistance == null || other.crowdingDistance == null) return 0;
 
                 return (int)(other.crowdingDistance - crowdingDistance);
+                
             }
-
             return (int)(fitness.weightedFitness - other.fitness.weightedFitness);
 
         }
@@ -461,7 +462,7 @@ namespace ImageSegmentation_MOEA
     {
         public int Compare(Individual x, Individual y)
         {
-            return (int)(x.fitness.edgeValue - y.fitness.edgeValue);
+            return (int)(y.fitness.edgeValue - x.fitness.edgeValue);
         }
     }
 
@@ -469,7 +470,7 @@ namespace ImageSegmentation_MOEA
     {
         public int Compare(Individual x, Individual y)
         {
-            return (int)(y.fitness.connectivity - x.fitness.connectivity);
+            return (int)(x.fitness.connectivity - y.fitness.connectivity);
         }
     }
 
@@ -477,7 +478,7 @@ namespace ImageSegmentation_MOEA
     {
         public int Compare(Individual x, Individual y)
         {
-            return (int)(y.fitness.overallDeviation - x.fitness.overallDeviation);
+            return (int)(x.fitness.overallDeviation - y.fitness.overallDeviation);
         }
     }
 }

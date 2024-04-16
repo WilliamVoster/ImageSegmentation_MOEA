@@ -91,21 +91,25 @@ namespace ImageSegmentation_MOEA
 
 
                 // Selection
-                Individual[] parents = selectionParents(popSize);
+                List<Individual> parents = population.GetRange(0, popSize);
+                //Individual[] parents = selectionParents(popSize);
+
 
                 // Crossover
-                Individual[] children = crossover(parents);
+                List<Individual> children = crossover(parents);
 
                 // Mutation
                 children = mutateSplashCircle(children);
 
-                // Add children
+                // Add children and calc fitness
                 for (int j = 0; j < popSize; j++)
+                {
+                    children[j].calcFitness();
                     population.Add(children[j]);
+                }
 
-                // Sort
-                sortPopulation(popSize);
-
+                // Sort, calc crowding and cut off excess
+              sortPopulation(popSize);
 
 
 
@@ -119,20 +123,6 @@ namespace ImageSegmentation_MOEA
             Program.saveSolution(overlayedImage, solutionsFolder + "\\test_child_overlay.png");
         }
 
-        public Individual[] selectionParents(int numParents)
-        {
-            Individual[] parents = new Individual[numParents];
-
-            LinkedListNode< Individual> iter = population.First;
-            for (int i = 0; i < numParents; i++)
-            {
-                parents[i] = iter.Value;
-                iter = iter.Next;
-            }
-
-            return parents;
-        }
-
 
         public void sortPopulation(int cutOffPoint)
         {
@@ -144,7 +134,7 @@ namespace ImageSegmentation_MOEA
              * cut off excess individuals to return population to length = cutOffPoint/popSize
              */
 
-            // If pareto-front sorting
+            // If pareto-front sorting and not SGA
             if (population[0].fitness.weightedFitness == null)
             {
                 int frontNumber = 0;
@@ -179,10 +169,11 @@ namespace ImageSegmentation_MOEA
                     checkedIndividuals.AddRange(front);
                 }
 
+
                 // Individuals in last front are subject to further sorting and need crowding distance
 
                 int startOfLastFront = checkedIndividuals.Count - front.Count;
-                double comstomMaxValue = double.MaxValue / 0.35; // i.e. less than 1/3 of double.max
+                double comstomMaxValue = 100; // i.e. less than 1/3 of double.max
                 double prev; double next;
 
 
@@ -205,7 +196,8 @@ namespace ImageSegmentation_MOEA
 
                     prev = checkedIndividuals[i + startOfLastFront - 1].fitness.edgeValue;
                     next = checkedIndividuals[i + startOfLastFront + 1].fitness.edgeValue;
-                    checkedIndividuals[i + startOfLastFront].crowdingDistance += Math.Pow(prev - next, 2);
+                    checkedIndividuals[i + startOfLastFront].crowdingDistance +=
+                        Math.Pow(prev - next, 2) / (1 + Math.Pow(prev - next, 2));
                 }
 
 
@@ -227,7 +219,8 @@ namespace ImageSegmentation_MOEA
 
                     prev = checkedIndividuals[i + startOfLastFront - 1].fitness.connectivity;
                     next = checkedIndividuals[i + startOfLastFront + 1].fitness.connectivity;
-                    checkedIndividuals[i + startOfLastFront].crowdingDistance += Math.Pow(prev - next, 2);
+                    checkedIndividuals[i + startOfLastFront].crowdingDistance +=
+                        Math.Pow(prev - next, 2) / (1 + Math.Pow(prev - next, 2));
                 }
 
 
@@ -249,21 +242,25 @@ namespace ImageSegmentation_MOEA
 
                     prev = checkedIndividuals[i + startOfLastFront - 1].fitness.overallDeviation;
                     next = checkedIndividuals[i + startOfLastFront + 1].fitness.overallDeviation;
-                    checkedIndividuals[i + startOfLastFront].crowdingDistance += Math.Pow(prev - next, 2);
+                    checkedIndividuals[i + startOfLastFront].crowdingDistance +=
+                        Math.Pow(prev - next, 2) / (1 + Math.Pow(prev - next, 2));
                 }
 
 
                 population = checkedIndividuals;
+
             }
+
+            
 
             population.Sort();
 
             // Cut off excess 
             if (population.Count > popSize)
-                population.RemoveRange(popSize, popSize - population.Count);
+                population.RemoveRange(popSize, population.Count - popSize);
         }
 
-        public Individual[] crossover(Individual[] parents)
+        public List<Individual> crossover(List<Individual> parents)
         {
             /*
              * split num ~%50 segments from each parent (make more random somehow, not just first x)
@@ -288,15 +285,15 @@ namespace ImageSegmentation_MOEA
             Segment child1Segment;
             Segment child2Segment;
 
-            Individual[] children = new Individual[parents.Length];
-            
-            for (int i = 0; i < parents.Length; i += 2)
+            List<Individual> children = new List<Individual>(parents.Count);
+
+            for (int i = 0; i < parents.Count; i += 2)
             {
                 splitIndex = random.Next(numSegments - 2) + 1; //makes sure not all segments from one parent
 
 
-                children[i] = new Individual(image, numSegments, random, true);
-                children[i+1] = new Individual(image, numSegments, random, true);
+                children.Add(new Individual(image, numSegments, random, true)); // at index i
+                children.Add(new Individual(image, numSegments, random, true)); // at index i+1
 
                 // Each segment is flood filled within segments from parent 1 and 2, split on splitIndex
                 for (int j = 0; j < numSegments; j++)
@@ -340,7 +337,7 @@ namespace ImageSegmentation_MOEA
             return children;
         }
 
-        public Individual[] mutateSplashCircle(Individual[] children)
+        public List<Individual> mutateSplashCircle(List<Individual> children)
         {
             /* 
              * Generate random cirlce (or other shape) collection of pixels
@@ -367,7 +364,7 @@ namespace ImageSegmentation_MOEA
                 }
             }
 
-            for (int i = 0; i < children.Length; i++)
+            for (int i = 0; i < children.Count; i++)
             {
                 for (int j = 0; j < numCircles; j++)
                 {
@@ -434,18 +431,6 @@ namespace ImageSegmentation_MOEA
 
         }
 
-        //public void selection(Individual[] parents, Individual[] children)
-        //{
-        //    for(int i = 0; i < popSize; i++)
-        //    {
-        //        Fitness childFitness = children[i].calcFitness();
-        //        if(childFitness.getWeightedFitness() > parents[i].fitness.getWeightedFitness() && random.NextDouble() < 0.8)
-        //        {
-        //            population[i] = children[i];
-
-        //        }
-        //    }
-        //}
         
         public void loadImage(string filepath)
         {
@@ -587,7 +572,8 @@ namespace ImageSegmentation_MOEA
             Program program = new Program(50, 100, 150);
 
             string solutionDir = Directory.GetCurrentDirectory() + "\\..\\..\\..\\";
-            String[] images = { "86016", "118035", "147091", "176035", "176039", "353013" };
+            
+            string[] images = { "86016", "118035", "147091", "176035", "176039", "353013" };
             // dimensions of fourth photo - 176039 had other dimensions than the ground truth photos.
             string trainImageFolderPath = solutionDir + "Project_3_training_images\\" + images[1];
             string evaluatorPath = solutionDir + "Project_3_evaluator\\";
@@ -599,19 +585,12 @@ namespace ImageSegmentation_MOEA
 
             //Program.moveImages(trainImageFolderPath, evaluatorPath + "optimal_segments", "GT_*.jpg", true);
             //Program.moveImages(trainImageFolderPath, solutionsFolder, "s*.jpg", true);
-
             //Program.runPythonEvaluator();
 
 
             program.loadImage(imagePath);
             program.run();
 
-
-            //Individual individual = new Individual(program.image, 150);
-            //individual.initializeSegmentsGrid(10, 10);
-
-            //Bitmap segmentedImage = individual.getBitmap();
-            //Program.saveSolution(segmentedImage, solutionsFolder + "\\grid.png");
 
 
         }
