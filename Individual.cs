@@ -19,6 +19,8 @@ namespace ImageSegmentation_MOEA
         public int numSegments;
         private Random random;
         public Fitness fitness; 
+        public int front;
+        public double? crowdingDistance;
 
 
         public Individual(Bitmap image, int numSegments, Random random, bool coloredSegments = true)
@@ -436,7 +438,21 @@ namespace ImageSegmentation_MOEA
         public int CompareTo(object? obj)
         {
             if (obj == null) return 1;
-            return (int)(((Individual)obj).fitness.edgeValue - fitness.edgeValue);
+            if (ReferenceEquals(this, obj)) return 0;
+
+            Individual other = obj as Individual;
+
+            if (fitness.weightedFitness == null && other.fitness.weightedFitness == null)
+            {
+                if (front < other.front) return -1;
+                if (front > other.front) return 1;
+                if (crowdingDistance == null || other.crowdingDistance == null) return 0;
+
+                return (int)(other.crowdingDistance - crowdingDistance);
+            }
+
+            return (int)(fitness.weightedFitness - other.fitness.weightedFitness);
+
         }
 
 

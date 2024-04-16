@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
@@ -31,19 +32,21 @@ namespace ImageSegmentation_MOEA
 
 
         Bitmap image;
+        Random random;
         int popSize;
         int numGenerations;
-        Individual[] population;
-        Random random;
         int numSegments;
+        //Individual[] population;
+        List<Individual> population;
 
         Program(int popSize, int numGenerations, int numSegments) 
         {
             this.random = new Random(1);
             this.popSize = popSize;
             this.numGenerations = numGenerations;
-            population = new Individual[popSize];
             this.numSegments = numSegments;
+            //population = new Individual[popSize];
+            population = new LinkedList<Individual>();
         }
 
         public void setPaths(
@@ -65,9 +68,10 @@ namespace ImageSegmentation_MOEA
             // Init population
             for (int i = 0; i < popSize; i++)
             {
-                population[i] = new Individual(image, numSegments, random);
-                population[i].initializeSegmentsGrid(10, 10);
-                population[i].calcFitness();
+                Individual individual = new Individual(image, numSegments, random);
+                individual.initializeSegmentsGrid(10, 10);
+                individual.calcFitness();
+                population.Add(individual);
             }
 
 
@@ -76,20 +80,26 @@ namespace ImageSegmentation_MOEA
                 // Logging
                 Console.WriteLine("Generation: " + i);
 
-                //Selection
-                Array.Sort(population);
-                Individual[] parents = selection(popSize);
 
-                //Crossover
+
+                // Selection
+                Individual[] parents = selectionParents(popSize);
+
+                // Crossover
                 Individual[] children = crossover(parents);
 
-                //Mutation
+                // Mutation
                 children = mutateSplashCircle(children);
 
-                
+                // Add children
+                for (int j = 0; j < popSize; j++)
+                    population.Add(children[j]);
 
-                //Offspring Selection
-                selection(parents, children);
+                // Sort
+                sortPopulation(popSize);
+
+
+
 
             }
 
@@ -101,16 +111,90 @@ namespace ImageSegmentation_MOEA
             Program.saveSolution(overlayedImage, solutionsFolder + "\\test_child_overlay.png");
         }
 
-        public Individual[] selection(int numParents)
+        public Individual[] selectionParents(int numParents)
         {
             Individual[] parents = new Individual[numParents];
 
+            LinkedListNode< Individual> iter = population.First;
             for (int i = 0; i < numParents; i++)
             {
-                parents[i] = population[i];
+                parents[i] = iter.Value;
+                iter = iter.Next;
             }
 
             return parents;
+        }
+
+        //public void selectionCutOff(int numToKeep)
+        //{
+        //    /* 
+        //     * Expects the population to already be sorted
+        //     * operates on population
+        //     * deletes numToKeep from end of list
+        //     */
+            
+        //    int numToDelete = population.Count - numToKeep;
+
+        //    for (int i = 0; i < numToDelete; i++)
+        //    {
+        //        population.RemoveLast();
+        //    }
+        //}
+
+        public void sortPopulation(int cutOffPoint)
+        {
+            /* 
+             * Sorts population first based on fronts and then by crowding distance
+             * if SGA - just call Sort()
+             * else set front number and calc crowding distance for each individual first
+             *      since required in Individual.CompareTo()
+             * cut off excess individuals to return population to length = cutOffPoint/popSize
+             */
+
+            // If pareto-front sorting
+            if (population[0].fitness.weightedFitness == null)
+            {
+                int frontNumber = 0;
+                List<Individual> checkedIndividuals = new List<Individual>(population.Count * 2);
+                while(checkedIndividuals.Count <= cutOffPoint)
+                {
+                    frontNumber++;
+                    for (int i = 0; i < population.Count; i++)
+                    {
+                        bool inFront = true;
+                        for (int j = 0; j < population.Count; j++)
+                        {
+                            if (!checkedIndividuals.Contains(population[i]) && 
+                                population[i].fitness.isDominatedBy(population[j].fitness))
+                            {
+                                inFront = false;
+                                break;
+                            }
+                        }
+
+                        if (inFront)
+                        {
+                            population[i].front = frontNumber;
+                            checkedIndividuals.Add(population[i]);
+                        }
+                    }
+                }
+
+                // Individuals in last front are subject to further sorting and need crowding distance
+                for (int i = checkedIndividuals.Count - 1; i >= 0; i--)
+                {
+                    if (checkedIndividuals[i].front < frontNumber) break;
+                    checkedIndividuals[i].fitness.calcCrowdingDistance();
+                }
+
+                population = checkedIndividuals;
+            }
+
+            population.Sort();
+
+            // Cut off excess 
+            if (population.Count > popSize)
+                population.RemoveRange(popSize, popSize - population.Count);
         }
 
         public Individual[] crossover(Individual[] parents)
@@ -284,18 +368,18 @@ namespace ImageSegmentation_MOEA
 
         }
 
-        public void selection(Individual[] parents, Individual[] children)
-        {
-            for(int i = 0; i < popSize; i++)
-            {
-                Fitness childFitness = children[i].calcFitness();
-                if(childFitness.getWeightedFitness() > parents[i].fitness.getWeightedFitness() && random.NextDouble() < 0.8)
-                {
-                    population[i] = children[i];
+        //public void selection(Individual[] parents, Individual[] children)
+        //{
+        //    for(int i = 0; i < popSize; i++)
+        //    {
+        //        Fitness childFitness = children[i].calcFitness();
+        //        if(childFitness.getWeightedFitness() > parents[i].fitness.getWeightedFitness() && random.NextDouble() < 0.8)
+        //        {
+        //            population[i] = children[i];
 
-                }
-            }
-        }
+        //        }
+        //    }
+        //}
         
         public void loadImage(string filepath)
         {

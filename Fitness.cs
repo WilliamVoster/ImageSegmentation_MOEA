@@ -34,5 +34,28 @@ namespace ImageSegmentation_MOEA
             return (double)weightedFitness;
         }
 
+        public bool isDominatedBy(Fitness other)
+        {
+            // 'Other' not worse than 'this' in all objectives
+            if (!(
+                other.edgeValue < edgeValue ||
+                other.connectivity > connectivity ||
+                other.overallDeviation > overallDeviation
+            )) 
+            {
+                // 'Other' better than 'this' in one or more objectives
+                if (
+                    other.edgeValue > edgeValue ||
+                    other.connectivity < connectivity ||
+                    other.overallDeviation < overallDeviation
+                )
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
     }
 }
