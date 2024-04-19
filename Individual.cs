@@ -14,6 +14,7 @@ namespace ImageSegmentation_MOEA
         public Segment[] segmentView;
         public Pixel[,] coordinateView;
         public Bitmap image;
+        public double[,] imageGradientMagnitudes;
         public Bitmap segmentBorders;
         public Bitmap overlayedSegmentation;
         public int numSegments;
@@ -62,7 +63,6 @@ namespace ImageSegmentation_MOEA
             int rowSize = image.Height / numRows;
             int colSize = image.Width / numCols;
 
-            //if(((image.Height / numRows) * numCols + (image.Width / numCols)) >= numSegments)
             if (numRows * numCols >= numSegments)
             {
                 throw new Exception("Too few segments");
@@ -89,6 +89,157 @@ namespace ImageSegmentation_MOEA
             
         }
 
+        public static double[,] calcImageGradients(Bitmap image)
+        {
+            // Calc greyscale image
+            Bitmap greyscale = new Bitmap(image.Width, image.Height);
+            for (int x = 0; x < image.Width; x++)
+            {
+                for (int y = 0; y < image.Height; y++)
+                {
+                    Color pixel = image.GetPixel(x, y);
+                    int pixelGrey = (int)(pixel.R * 0.299 + pixel.G * 0.587 + pixel.B * 0.114);
+                    greyscale.SetPixel(x, y, Color.FromArgb(pixelGrey, pixelGrey, pixelGrey));
+                }
+            }
+
+            // Calc gaussian blurred image
+            Bitmap blurred = new Bitmap(image.Width, image.Height);
+            double[,] kernel = { { 1, 2, 1 }, { 2, 4, 2 }, { 1, 2, 1 } };
+            double sumKernel = 16;
+            for (int x = 1; x < image.Width - 1; x++)
+            {
+                for (int y = 1; y < image.Height - 1; y++)
+                {
+                    double sumPixel = 0;
+                    for (int i = -1; i < 2; i++)
+                    {
+                        for (int j = -1; j < 2; j++)
+                        {
+                            sumPixel += kernel[i + 1, j + 1] * greyscale.GetPixel(x + i, y + j).R;
+                        }
+                    }
+
+                    int value = (int)(sumPixel / sumKernel);
+                    if (value < 0) value = 0;
+                    if (value > 255) value = 255;
+
+                    blurred.SetPixel(x, y, Color.FromArgb(value, value, value));
+                }
+            }
+
+            // Calc image gradient magnitudes
+            double[,] imageGradientMagnitudes = new double[image.Width, image.Height];
+
+            for (int x = 1; x < image.Width - 1; x++)
+            {
+                for (int y = 1; y < image.Height - 1; y++)
+                {
+                    double horizontalGradient = 0;
+                    horizontalGradient += blurred.GetPixel(x - 1, y - 1).R;
+                    horizontalGradient += 2 * blurred.GetPixel(x - 1, y).R;
+                    horizontalGradient += blurred.GetPixel(x - 1, y + 1).R;
+                    horizontalGradient -= blurred.GetPixel(x + 1, y - 1).R;
+                    horizontalGradient -= 2 * blurred.GetPixel(x + 1, y).R;
+                    horizontalGradient -= blurred.GetPixel(x + 1, y + 1).R;
+
+
+                    double verticalGradient = 0;
+                    verticalGradient += blurred.GetPixel(x - 1, y - 1).R;
+                    verticalGradient += 2 * blurred.GetPixel(x, y - 1).R;
+                    verticalGradient += blurred.GetPixel(x + 1, y - 1).R;
+                    verticalGradient -= blurred.GetPixel(x - 1, y + 1).R;
+                    verticalGradient -= 2 * blurred.GetPixel(x, y + 1).R;
+                    verticalGradient -= blurred.GetPixel(x + 1, y + 1).R;
+
+                    imageGradientMagnitudes[x, y] = Math.Sqrt(
+                        horizontalGradient * horizontalGradient + verticalGradient * verticalGradient);
+                }
+            }
+
+            return imageGradientMagnitudes;
+        }
+
+        public void initializeSegmentsSobel(int threshholdMin, int thresholdMax)
+        {
+            /* 
+             * Requires imageGradientMagnitudes to be calculated first.
+             */
+
+            double threshold = (random.NextDouble() * (thresholdMax - threshholdMin)) + threshholdMin;
+            Bitmap imageSobelEdges = new Bitmap(image.Width, image.Height);
+            bool[,] visited = new bool[image.Width, image.Height];
+            int segmentIndex = 0;
+
+            for (int x = 0; x < image.Width; x++)
+            {
+                for (int y = 0; y < image.Height; y++)
+                {
+                    if (imageGradientMagnitudes[x, y] < threshold && !visited[x, y])
+                    {
+                        floodFillSegmentSobel(
+                            threshold, 
+                            segmentView[segmentIndex], 
+                            new Tuple<int, int>(x, y), 
+                            visited
+                        );
+
+                        segmentIndex++;
+
+                        if (segmentIndex >= segmentView.Length)
+                            segmentIndex = segmentView.Length - 1;
+
+                    }
+                }
+            }
+
+            floodFillEmptyPixels();
+        }
+
+        private void floodFillSegmentSobel(
+            double threshold, 
+            Segment writeSegment, 
+            Tuple<int, int> startPoint, 
+            bool[,] visited
+        )
+        {
+            Queue<Tuple<int, int>> toFill = new Queue<Tuple<int, int>>();
+
+            toFill.Enqueue(startPoint);
+
+            while (toFill.Count > 0)
+            {
+                (int x, int y) = toFill.Dequeue();
+
+                if (
+                    x >= 0 &&
+                    x < coordinateView.GetLength(0) &&
+                    y >= 0 &&
+                    y < coordinateView.GetLength(1) &&
+
+                    !visited[x, y] &&
+                    imageGradientMagnitudes[x, y] < threshold
+                )
+                {
+                    Pixel pixel = new Pixel(new Tuple<int, int>(x, y), writeSegment, writeSegment.color);
+                    addPixel(writeSegment, pixel);
+                    visited[x, y] = true;
+
+                    // Add neighboring pixels/coordinates to queue
+                    for (int i = 0; i < 4; i++)
+                    //for (int i = 0; i < Program.NEIGHBOR_ORDER.GetLength(0); i++)
+                    {
+                        toFill.Enqueue(
+                            Tuple.Create(
+                                x + Program.NEIGHBOR_ORDER[i, 0],
+                                y + Program.NEIGHBOR_ORDER[i, 1]));
+
+                    }
+                }
+                
+            }
+        }
+
         public void addPixel(Segment segment, Pixel pixel)
         {
             pixel.segment = segment;
@@ -112,7 +263,6 @@ namespace ImageSegmentation_MOEA
              * variable radius?
              */
         }
-
 
         public void mutate_growBorder()
         {
@@ -429,6 +579,7 @@ namespace ImageSegmentation_MOEA
                     if (segmentBorders.GetPixel(x, y).Name != "ffffffff")
                     {
                         overlayedSegmentation.SetPixel(x, y, Color.Green);
+
                     }
                 }
             }
