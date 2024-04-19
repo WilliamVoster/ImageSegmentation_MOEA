@@ -74,10 +74,16 @@ namespace ImageSegmentation_MOEA
         public void run()
         {
             // Init population
+            double[,] imageGradientMagnitudes = Individual.calcImageGradients(image);
             for (int i = 0; i < popSize; i++)
             {
-                Individual individual = new Individual(image, numSegments, random);
-                individual.initializeSegmentsGrid(10, 10);
+                Individual individual = new Individual(image, numSegments, random, true);
+
+                //individual.initializeSegmentsGrid(10, 10);
+
+                individual.imageGradientMagnitudes = imageGradientMagnitudes;
+                individual.initializeSegmentsSobel(80, 120);
+
                 individual.calcFitness();
                 population.Add(individual);
             }
@@ -109,20 +115,14 @@ namespace ImageSegmentation_MOEA
                 }
 
                 // Sort, calc crowding and cut off excess
-              sortPopulation(popSize);
+                sortPopulation(popSize);
 
 
 
             }
 
-            // Displaying/saving
-            Bitmap segmentedImage = population[0].getBitmap_border();
-            Program.saveSolution(segmentedImage, solutionsFolder + "\\test_child.png");
-
-            Bitmap overlayedImage = population[0].getBitmap_overlayImage();
-            Program.saveSolution(overlayedImage, solutionsFolder + "\\test_child_overlay.png");
+            
         }
-
 
         public void sortPopulation(int cutOffPoint)
         {
@@ -431,7 +431,42 @@ namespace ImageSegmentation_MOEA
 
         }
 
-        
+
+
+        // Non-GA related:
+        public void testSolutions()
+        {
+            /* 
+             * Assumes run() has been called and population holds a sorted list of the solutions
+             */
+
+            Program.moveImages(trainImageFolderPath, solutionsFolder, "GT_*.jpg", true);
+
+            for (int i = 0; i < population.Count; i++)
+            {
+                if (population[i].front > 1) break;
+
+                //should they be jpg?
+                Program.saveSolution(
+                    population[i].getBitmap_border(),
+                    solutionsFolder + "\\s" + i + ".png"
+                ); 
+
+                Program.saveSolution(
+                    population[i].getBitmap_overlayImage(),
+                    solutionsFolder + "\\overlayed" + i + ".png"
+                );
+
+                Program.saveSolution(
+                    population[i].getBitmap_overlayImage(),
+                    solutionsFolder + "\\segments" + i + ".png"
+                );
+
+            }
+
+            Program.runPythonEvaluator();
+
+        }
         public void loadImage(string filepath)
         {
             image = null;
@@ -569,10 +604,7 @@ namespace ImageSegmentation_MOEA
             - crossover from two parents doesnt include y=160
             */
 
-            Program program = new Program(50, 100, 150);
-
             string solutionDir = Directory.GetCurrentDirectory() + "\\..\\..\\..\\";
-            
             string[] images = { "86016", "118035", "147091", "176035", "176039", "353013" };
             // dimensions of fourth photo - 176039 had other dimensions than the ground truth photos.
             string trainImageFolderPath = solutionDir + "Project_3_training_images\\" + images[1];
@@ -580,18 +612,19 @@ namespace ImageSegmentation_MOEA
             string imagePath = trainImageFolderPath + "\\Test image.jpg";
             string solutionsFolder = evaluatorPath + "student_segments";
 
+
+
+            Program program = new Program(50, 10, 150);
+
             program.setPaths(trainImageFolderPath, evaluatorPath, imagePath, solutionsFolder);
 
-
-            //Program.moveImages(trainImageFolderPath, evaluatorPath + "optimal_segments", "GT_*.jpg", true);
-            //Program.moveImages(trainImageFolderPath, solutionsFolder, "s*.jpg", true);
-            //Program.runPythonEvaluator();
-
-
             program.loadImage(imagePath);
+
             program.run();
 
+            program.testSolutions();
 
+            
 
         }
     }

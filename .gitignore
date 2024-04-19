@@ -371,7 +371,7 @@ FodyWeavers.xsd
 
 *.pdn
 
-student_segments/
+student_segments*/
 
 
 
