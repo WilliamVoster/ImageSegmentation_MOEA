@@ -371,9 +371,13 @@ FodyWeavers.xsd
 
 *.pdn
 
+project_3_evaluator/
+
 student_segments*/
 
+optimal_segments*/
 
+**/*.jpg
 
 
 

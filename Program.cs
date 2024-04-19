@@ -440,7 +440,10 @@ namespace ImageSegmentation_MOEA
              * Assumes run() has been called and population holds a sorted list of the solutions
              */
 
-            Program.moveImages(trainImageFolderPath, solutionsFolder, "GT_*.jpg", true);
+            Program.moveImages(trainImageFolderPath, evaluatorPath + "optimal_segments", "GT_*.jpg", true);
+            Program.deleteAllFromDir(solutionsFolder);
+            Program.deleteAllFromDir(solutionsFolder + "\\more");
+
 
             for (int i = 0; i < population.Count; i++)
             {
@@ -450,16 +453,16 @@ namespace ImageSegmentation_MOEA
                 Program.saveSolution(
                     population[i].getBitmap_border(),
                     solutionsFolder + "\\s" + i + ".png"
-                ); 
-
-                Program.saveSolution(
-                    population[i].getBitmap_overlayImage(),
-                    solutionsFolder + "\\overlayed" + i + ".png"
                 );
 
                 Program.saveSolution(
                     population[i].getBitmap_overlayImage(),
-                    solutionsFolder + "\\segments" + i + ".png"
+                    solutionsFolder + "\\more\\overlayed" + i + ".png"
+                );
+
+                Program.saveSolution(
+                    population[i].getBitmap_fill(),
+                    solutionsFolder + "\\more\\segments" + i + ".png"
                 );
 
             }
@@ -516,23 +519,24 @@ namespace ImageSegmentation_MOEA
 
         }
 
+        private static void deleteAllFromDir(string directory)
+        {
+            string[] filesToDelete = Directory.GetFiles(directory, "*.png");
+
+            foreach (string filePath in filesToDelete)
+            {
+                File.Delete(filePath);
+                Console.WriteLine("Deleted: " + filePath);
+            }
+        }
+
         public static void moveImages(string source, string destination, string filter, bool deleteAllInDestination)
         {
 
             try
             {
                 if (deleteAllInDestination)
-                {
-
-                    string[] filesToDelete = Directory.GetFiles(destination, "*.jpg");
-
-                    foreach (string filePath in filesToDelete)
-                    {
-                        File.Delete(filePath);
-                        Console.WriteLine("Deleted: " + filePath);
-                    }
-
-                }
+                    deleteAllFromDir(destination);
 
 
                 List<string> groundTruths = Directory.GetFiles(source, filter).ToList<string>();
@@ -614,7 +618,7 @@ namespace ImageSegmentation_MOEA
 
 
 
-            Program program = new Program(50, 10, 150);
+            Program program = new Program(50, 1, 150);
 
             program.setPaths(trainImageFolderPath, evaluatorPath, imagePath, solutionsFolder);
 
