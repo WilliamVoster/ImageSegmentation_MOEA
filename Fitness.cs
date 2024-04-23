@@ -16,7 +16,7 @@ namespace ImageSegmentation_MOEA
 
         public static double edgeValueWeight = -0.03;
         public static double connectivityWeight = 0.05;
-        public static double overallDeviationWeight = 0.001;
+        public static double overallDeviationWeight = 0.0001;
 
         public double? weightedFitness;
 

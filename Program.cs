@@ -71,7 +71,7 @@ namespace ImageSegmentation_MOEA
 
         }
 
-        public void run()
+        public void run(bool simpleGA = false)
         {
             // Init population
             double[,] imageGradientMagnitudes = Individual.calcImageGradients(image);
@@ -79,12 +79,19 @@ namespace ImageSegmentation_MOEA
             {
                 Individual individual = new Individual(image, numSegments, random, true);
 
-                //individual.initializeSegmentsGrid(10, 10);
+                if(random.NextDouble() < 0.5)
+                {
+                    individual.initializeSegmentsGrid();
+                }
+                else
+                {
+                    individual.imageGradientMagnitudes = imageGradientMagnitudes;
+                    individual.initializeSegmentsSobel(70, 130);
+                }
 
-                individual.imageGradientMagnitudes = imageGradientMagnitudes;
-                individual.initializeSegmentsSobel(80, 120);
 
                 individual.calcFitness();
+                if (simpleGA) individual.fitness.getWeightedFitness();
                 population.Add(individual);
             }
 
@@ -98,30 +105,40 @@ namespace ImageSegmentation_MOEA
 
                 // Selection
                 List<Individual> parents = population.GetRange(0, popSize);
-                //Individual[] parents = selectionParents(popSize);
 
 
                 // Crossover
                 List<Individual> children = crossover(parents);
 
+
                 // Mutation
-                children = mutateSplashCircle(children);
+                children = mutateSplashCircle(children, 5, 20);
+
 
                 // Add children and calc fitness
                 for (int j = 0; j < popSize; j++)
                 {
                     children[j].calcFitness();
+                    if (simpleGA) children[j].fitness.getWeightedFitness();
                     population.Add(children[j]);
                 }
+
+                //TEst
+                //population[0] = population[population.Count - 1];
+                //testSolutions();
 
                 // Sort, calc crowding and cut off excess
                 sortPopulation(popSize);
 
 
-
             }
 
-            
+            foreach (Individual individual in population)
+            {
+                individual.getNumUsedSegments();
+            }
+
+            Console.WriteLine("Completed simulation\n\n");
         }
 
         public void sortPopulation(int cutOffPoint)
@@ -337,7 +354,8 @@ namespace ImageSegmentation_MOEA
             return children;
         }
 
-        public List<Individual> mutateSplashCircle(List<Individual> children)
+        public List<Individual> mutateSplashCircle(
+            List<Individual> children, int radius = 3, int numCircles = 5)
         {
             /* 
              * Generate random cirlce (or other shape) collection of pixels
@@ -345,8 +363,8 @@ namespace ImageSegmentation_MOEA
              * Varying radius/size
              */
 
-            int radius = 3;
-            int numCircles = 3;
+            //int radius = 3;
+            //int numCircles = 3;
             Individual child;
             Pixel pixel;
             List<Segment> circleSegments = new List<Segment>();
@@ -444,12 +462,15 @@ namespace ImageSegmentation_MOEA
             Program.deleteAllFromDir(solutionsFolder);
             Program.deleteAllFromDir(solutionsFolder + "\\more");
 
+            bool simpleGA = population[0].fitness.weightedFitness != null;
 
-            for (int i = 0; i < population.Count; i++)
+            int i;
+            for (i = 0; i < population.Count; i++)
             {
-                if (population[i].front > 1) break;
+                if (population[i].front > 1 && !simpleGA) break;
+                if (simpleGA && i > 0) break;
+                if (!simpleGA && i > 4) break;
 
-                //should they be jpg?
                 Program.saveSolution(
                     population[i].getBitmap_border(),
                     solutionsFolder + "\\s" + i + ".png"
@@ -465,9 +486,18 @@ namespace ImageSegmentation_MOEA
                     solutionsFolder + "\\more\\segments" + i + ".png"
                 );
 
+                Console.WriteLine($"" +
+                    $"Saved solution {i}, with\n" +
+                    $"Edge value: {population[i].fitness.edgeValue}\n" +
+                    $"Connectivity: {population[i].fitness.connectivity}\n" +
+                    $"Overall deviation: {population[i].fitness.overallDeviation}\n" +
+                    $"Segmented with {population[i].numUsedSegments} segments\n\n");
+                
             }
 
-            Program.runPythonEvaluator();
+            Console.WriteLine($"Saved {i} solutions to {solutionsFolder}");
+
+            Program.runPythonEvaluator(evaluatorPath + "run.py");
 
         }
         public void loadImage(string filepath)
@@ -481,7 +511,7 @@ namespace ImageSegmentation_MOEA
 
         }
 
-        public static void runPythonEvaluator()
+        public static void runPythonEvaluator(string script)
         {
             try
             {
@@ -490,7 +520,7 @@ namespace ImageSegmentation_MOEA
                 ProcessStartInfo startInfo = new ProcessStartInfo();
 
                 startInfo.FileName = "python";
-                startInfo.Arguments = "C:\\Repo\\BioAI\\ImageSegmentation_MOEA\\Project_3_evaluator\\run.py";
+                startInfo.Arguments = script;
                 startInfo.UseShellExecute = false;
 
                 startInfo.RedirectStandardOutput = true;
@@ -521,13 +551,15 @@ namespace ImageSegmentation_MOEA
 
         private static void deleteAllFromDir(string directory)
         {
-            string[] filesToDelete = Directory.GetFiles(directory, "*.png");
+            string[] pngFiles = Directory.GetFiles(directory, "*.png");
+            string[] jpgFiles = Directory.GetFiles(directory, "*.jpg");
+            string[] filesToDelete = pngFiles.Concat(jpgFiles).ToArray();
 
             foreach (string filePath in filesToDelete)
             {
                 File.Delete(filePath);
-                Console.WriteLine("Deleted: " + filePath);
             }
+            Console.WriteLine($"Deleted {filesToDelete.Length} images from {directory}");
         }
 
         public static void moveImages(string source, string destination, string filter, bool deleteAllInDestination)
@@ -553,7 +585,7 @@ namespace ImageSegmentation_MOEA
                 }
 
             }
-            catch { Console.WriteLine("could not copy/find files"); }
+            catch (Exception ex) { Console.WriteLine("could not copy/find files; " + ex.Message); }
 
         }
 
@@ -564,9 +596,7 @@ namespace ImageSegmentation_MOEA
                 solution.Save(destination, System.Drawing.Imaging.ImageFormat.Png);
 
             }
-            catch { Console.WriteLine("could not save file"); }
-
-            Console.WriteLine("\nSaved solution: \n" + destination + "\n");
+            catch (Exception ex) { Console.WriteLine("could not save file " + ex.Message); }
 
         }
 
@@ -611,24 +641,27 @@ namespace ImageSegmentation_MOEA
             string solutionDir = Directory.GetCurrentDirectory() + "\\..\\..\\..\\";
             string[] images = { "86016", "118035", "147091", "176035", "176039", "353013" };
             // dimensions of fourth photo - 176039 had other dimensions than the ground truth photos.
-            string trainImageFolderPath = solutionDir + "Project_3_training_images\\" + images[1];
+            string trainImageFolderPath = solutionDir + "Project_3_training_images\\" + images[2];
             string evaluatorPath = solutionDir + "Project_3_evaluator\\";
             string imagePath = trainImageFolderPath + "\\Test image.jpg";
             string solutionsFolder = evaluatorPath + "student_segments";
 
 
 
-            Program program = new Program(50, 1, 150);
+            Program program = new Program(50, 10, 15);
 
             program.setPaths(trainImageFolderPath, evaluatorPath, imagePath, solutionsFolder);
 
             program.loadImage(imagePath);
 
-            program.run();
+            // MOEA
+            //program.run(false);
+            //program.testSolutions();
 
+            // SGA
+            program.run(true);
             program.testSolutions();
 
-            
 
         }
     }

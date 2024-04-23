@@ -18,6 +18,7 @@ namespace ImageSegmentation_MOEA
         public Bitmap segmentBorders;
         public Bitmap overlayedSegmentation;
         public int numSegments;
+        public int numUsedSegments;
         private Random random;
         public Fitness fitness; 
         public int front;
@@ -38,7 +39,6 @@ namespace ImageSegmentation_MOEA
             {
                 if (coloredSegments)
                 {
-                    //Color.FromArgb(random.Next(0, 255), random.Next(0, 255), random.Next(0, 255));
                     segmentView[i] = new Segment(
                         i,
                         Color.FromArgb(
@@ -58,10 +58,13 @@ namespace ImageSegmentation_MOEA
 
         }
 
-        public void initializeSegmentsGrid(int numRows, int numCols)
+        public void initializeSegmentsGrid()
         {
-            int rowSize = image.Height / numRows;
-            int colSize = image.Width / numCols;
+            int numRows = (int)Math.Floor(Math.Sqrt(numSegments));
+            int numCols = numRows;
+
+            int rowSize = (image.Height-1) / numRows;
+            int colSize = (image.Width-1) / numCols;
 
             if (numRows * numCols >= numSegments)
             {
@@ -78,7 +81,7 @@ namespace ImageSegmentation_MOEA
 
                     Segment segment = segmentView[row * numCols + col];
 
-                    Pixel pixel = new Pixel(new Tuple<int, int>(x, y), segment, segment.color);// image.color);
+                    Pixel pixel = new Pixel(new Tuple<int, int>(x, y), segment, image.GetPixel(x, y));
 
                     addPixel(segment, pixel);
 
@@ -221,7 +224,7 @@ namespace ImageSegmentation_MOEA
                     imageGradientMagnitudes[x, y] < threshold
                 )
                 {
-                    Pixel pixel = new Pixel(new Tuple<int, int>(x, y), writeSegment, writeSegment.color);
+                    Pixel pixel = new Pixel(new Tuple<int, int>(x, y), writeSegment, image.GetPixel(x, y));
                     addPixel(writeSegment, pixel);
                     visited[x, y] = true;
 
@@ -254,15 +257,21 @@ namespace ImageSegmentation_MOEA
             //coordinateView[pixel.coordinate.Item1, pixel.coordinate.Item2] = null; //needed for flood fill?
         }
 
-        public void mutate_splashCirlce()
+        public int getNumUsedSegments()
         {
-            /*
-             * select e.g. cirlce of (connected) pixels
-             * get list of all segments these pixels belong to
-             * change pixels to all have same segment
-             * variable radius?
+            /* 
+             * Returns the number of used segments of the fixed ones available to it
              */
+
+            numUsedSegments = 0;
+            foreach (Segment segment in segmentView)
+            {
+                if (segment.pixels.Count > 0)
+                    numUsedSegments++;
+            }
+            return numUsedSegments;
         }
+
 
         public void mutate_growBorder()
         {
@@ -309,18 +318,6 @@ namespace ImageSegmentation_MOEA
                             fitness.edgeValue += Math.Sqrt(radicand);
 
                             // Connectivity
-                            /* 
-
-                            A is to the east of B       B A
-                                                        i j
-                            F_B(A) = 2
-                            F_left(right) = 2;
-                            F_current(neighbor) = 2;
-
-                            // Connectivity
-                            1 / (j+1)
-
-                            */
                             fitness.connectivity += 0.125; //i.e. 1/8
                         }
 
@@ -383,7 +380,7 @@ namespace ImageSegmentation_MOEA
                     
                 )
                 {
-                    Pixel pixel = new Pixel(Tuple.Create(x, y), writeSegment);
+                    Pixel pixel = new Pixel(Tuple.Create(x, y), writeSegment, image.GetPixel(x, y));
                     addPixel(writeSegment, pixel);
 
                     // Add neighboring pixels/coordinates to queue
@@ -525,13 +522,6 @@ namespace ImageSegmentation_MOEA
                             pixel.coordinate.Item1 + Program.NEIGHBOR_ORDER[j, 0],
                             pixel.coordinate.Item2 + Program.NEIGHBOR_ORDER[j, 1]];
 
-                        //if (
-                        //    neighbor.segment != pixel.segment &&
-                        //    bitmap.GetPixel(neighbor.coordinate.Item1, neighbor.coordinate.Item2) == Color.White
-                        //)
-                        //{
-                        //    bitmap.SetPixel(pixel.coordinate.Item1, pixel.coordinate.Item2, Color.Black);
-                        //}
 
                         if (neighbor.segment == pixel.segment)
                         {
