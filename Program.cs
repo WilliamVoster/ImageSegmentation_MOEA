@@ -75,6 +75,7 @@ namespace ImageSegmentation_MOEA
         {
             // Init population
             double[,] imageGradientMagnitudes = Individual.calcImageGradients(image);
+            population.Clear();
             for (int i = 0; i < popSize; i++)
             {
                 Individual individual = new Individual(image, numSegments, random, true);
@@ -648,15 +649,15 @@ namespace ImageSegmentation_MOEA
 
 
 
-            Program program = new Program(50, 10, 15);
+            Program program = new Program(50, 3, 150);
 
             program.setPaths(trainImageFolderPath, evaluatorPath, imagePath, solutionsFolder);
 
             program.loadImage(imagePath);
 
             // MOEA
-            //program.run(false);
-            //program.testSolutions();
+            program.run(false);
+            program.testSolutions();
 
             // SGA
             program.run(true);

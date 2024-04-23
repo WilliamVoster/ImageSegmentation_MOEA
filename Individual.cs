@@ -60,11 +60,11 @@ namespace ImageSegmentation_MOEA
 
         public void initializeSegmentsGrid()
         {
-            int numRows = (int)Math.Floor(Math.Sqrt(numSegments));
+            int numRows = (int)Math.Floor(Math.Sqrt(numSegments)) - 1;
             int numCols = numRows;
 
-            int rowSize = (image.Height-1) / numRows;
-            int colSize = (image.Width-1) / numCols;
+            int rowSize = image.Height / numRows;
+            int colSize = image.Width / numCols;
 
             if (numRows * numCols >= numSegments)
             {
