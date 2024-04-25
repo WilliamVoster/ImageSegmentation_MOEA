@@ -138,6 +138,7 @@ namespace ImageSegmentation_MOEA
             {
                 for (int y = 1; y < image.Height - 1; y++)
                 {
+                    // i.e. two vertical lines to either side of center in a 3x3 kernel
                     double horizontalGradient = 0;
                     horizontalGradient += blurred.GetPixel(x - 1, y - 1).R;
                     horizontalGradient += 2 * blurred.GetPixel(x - 1, y).R;
@@ -146,7 +147,7 @@ namespace ImageSegmentation_MOEA
                     horizontalGradient -= 2 * blurred.GetPixel(x + 1, y).R;
                     horizontalGradient -= blurred.GetPixel(x + 1, y + 1).R;
 
-
+                    // i.e. two horizontal lines above and below center in a 3x3 kernel
                     double verticalGradient = 0;
                     verticalGradient += blurred.GetPixel(x - 1, y - 1).R;
                     verticalGradient += 2 * blurred.GetPixel(x, y - 1).R;
@@ -228,9 +229,8 @@ namespace ImageSegmentation_MOEA
                     addPixel(writeSegment, pixel);
                     visited[x, y] = true;
 
-                    // Add neighboring pixels/coordinates to queue
+                    // Add neighboring pixels/coordinates to queue (checks the first 4 directions)
                     for (int i = 0; i < 4; i++)
-                    //for (int i = 0; i < Program.NEIGHBOR_ORDER.GetLength(0); i++)
                     {
                         toFill.Enqueue(
                             Tuple.Create(
@@ -272,14 +272,6 @@ namespace ImageSegmentation_MOEA
             return numUsedSegments;
         }
 
-
-        public void mutate_growBorder()
-        {
-            /*
-             * given a segment (% chance to happen for each segment)
-             * 
-             */
-        }
 
         public Fitness calcFitness()
         {

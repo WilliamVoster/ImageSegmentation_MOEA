@@ -416,41 +416,6 @@ namespace ImageSegmentation_MOEA
             return children;
         }
 
-        public void mutateGrow()
-        {
-            /* 
-             * Choose a segment, take pixels along border from neighboring segments
-             */
-            
-        }
-
-        public void mutateErode()
-        {
-            /* 
-             * Choose a segment, move pixels along border to neighboring segments
-             */
-
-        }
-
-        public void mutateMerge()
-        {
-            /* 
-             * Choose a segment, find a neighboring/bordering segment
-             * merge the two segments
-             */
-
-        }
-
-        public void mutateSplit()
-        {
-            /* 
-             * If exists a segment with no pixels
-             * Choose a segment, split the segment into two
-             */
-
-        }
-
-
 
         // Non-GA related:
         public void testSolutions()
@@ -649,7 +614,7 @@ namespace ImageSegmentation_MOEA
 
 
 
-            Program program = new Program(50, 3, 150);
+            Program program = new Program(50, 25, 150);
 
             program.setPaths(trainImageFolderPath, evaluatorPath, imagePath, solutionsFolder);
 

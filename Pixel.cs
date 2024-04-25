@@ -9,7 +9,6 @@ namespace ImageSegmentation_MOEA
 {
     internal class Pixel
     {
-        //public static int CONNECTEDNESS = 8; // i.e. consider the neigboring 4 or 8 connected pxiels
 
         public Tuple<int, int> coordinate;
         public Segment segment;

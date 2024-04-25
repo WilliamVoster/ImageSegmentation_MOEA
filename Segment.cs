@@ -11,8 +11,7 @@ namespace ImageSegmentation_MOEA
     internal class Segment
     {
 
-        public Dictionary<Tuple<int, int>, Pixel> pixels;  //check if segment is used with segment.pixels.Count > 0
-        //public LinkedList<Segment> neighbors;  // relplaced by coordinateView in individual
+        public Dictionary<Tuple<int, int>, Pixel> pixels;
         public Color color;
         public int[] centre; // Pixel coordinate of segmentation centre
         public int index;
